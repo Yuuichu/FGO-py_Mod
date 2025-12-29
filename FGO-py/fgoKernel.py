@@ -36,6 +36,28 @@ logger=getLogger('Kernel')
 friendImg=ImageListener('fgoImage/friend/')
 mailImg=ImageListener('fgoImage/mail/')
 mutex=threading.Lock()
+
+def skipStory():
+    """
+    检测并跳过剧情，返回True表示检测到并处理了剧情
+    剧情跳过流程：点击右上角菜单 -> 点击跳过 -> 确认跳过
+    """
+    if Detect.cache is None:
+        return False
+    if Detect.cache.isStoryPlaying():
+        logger.info('Story detected, attempting to skip...')
+        # 点击右上角菜单按钮 (Menu)
+        fgoDevice.device.touch((1234, 36))
+        schedule.sleep(0.5)
+        # 点击跳过按钮
+        fgoDevice.device.touch((640, 400))
+        schedule.sleep(0.3)
+        # 如果出现确认弹窗，点击确认
+        if Detect().isStorySkipConfirm():
+            fgoDevice.device.touch((640, 440))
+            schedule.sleep(0.5)
+        return True
+    return False
 def serialize(lock):
     def decorator(func):
         @wraps(func)
@@ -409,10 +431,16 @@ class Turn:
         while not Detect().isTurnBegin():pass
         Detect(.5)
 class Battle:
+    skipStoryEnabled=True  # 是否自动跳过剧情，默认开启
     def __init__(self,turnClass=Turn):
         self.turn=0
         self.turnProc=turnClass()
         self.rainbowBox=False
+    def handleStory(self):
+        """处理剧情跳过，返回True表示检测到并处理了剧情"""
+        if not self.skipStoryEnabled:
+            return False
+        return skipStory()
     def __call__(self):
         self.start=time.time()
         self.material={}
@@ -420,6 +448,9 @@ class Battle:
             if Detect(0,.3).isTurnBegin():
                 self.turn+=1
                 self.turnProc(self.turn)
+            elif self.handleStory():
+                # 剧情已被跳过，继续循环
+                continue
             elif Detect.cache.isSpecialDropSuspended():
                 schedule.checkKizunaReisou()
                 logger.warning('Kizuna Reisou')
@@ -490,6 +521,7 @@ class Main:
                 elif Detect.cache.isTurnBegin():break
                 elif Detect.cache.isAddFriend():fgoDevice.device.perform('X',(300,))
                 elif Detect.cache.isSpecialDropSuspended():fgoDevice.device.perform('\x1B',(300,))
+                elif skipStory():continue  # 检测并跳过剧情
                 fgoDevice.device.press('\xBB')
             self.battleCount+=1
             logger.info(f'Battle {self.battleCount}')

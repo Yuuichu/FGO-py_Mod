@@ -132,6 +132,12 @@ class XDetectBase(metaclass=logMeta(logger)):
     def isTurnBegin(self):return self._compare(self.tmpl.ATTACK,(1155,635,1210,682))
     def isWeeklyMission(self):return numpy.min(cv2.matchTemplate(servantImg[1][1][3][0],cv2.resize(self._crop((296,117,421,210)),(0,0),fx=.555,fy=.555,interpolation=cv2.INTER_CUBIC),cv2.TM_SQDIFF_NORMED))<.1
     def isWeeklyMissionListEnd(self):return self._isListEnd((1261,614))
+    def isStoryPlaying(self):
+        """检测是否处于剧情播放界面 - 检测右上角菜单按钮"""
+        return self._compare(self.tmpl.STORYMENU,(1188,0,1280,72)) if hasattr(self.tmpl,'STORYMENU') else False
+    def isStorySkipConfirm(self):
+        """检测是否出现跳过剧情确认弹窗"""
+        return self._compare(self.tmpl.STORYSKIPCONFIRM,(380,360,900,520)) if hasattr(self.tmpl,'STORYSKIPCONFIRM') else False
     @retryOnError()
     def getCardColor(self):return[+self._select((self.tmpl.ARTS,self.tmpl.QUICK,self.tmpl.BUSTER),(80+257*i,537,131+257*i,581))for i in range(5)]
     def getCardCriticalRate(self):return[(lambda x:0 if x is None else x+1)(self._select((self.tmpl.CRITICAL1,self.tmpl.CRITICAL2,self.tmpl.CRITICAL3,self.tmpl.CRITICAL4,self.tmpl.CRITICAL5,self.tmpl.CRITICAL6,self.tmpl.CRITICAL7,self.tmpl.CRITICAL8,self.tmpl.CRITICAL9,self.tmpl.CRITICAL0),(76+257*i,350,113+257*i,405),.06))for i in range(5)]
