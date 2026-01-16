@@ -39,24 +39,43 @@ mutex=threading.Lock()
 
 def skipStory():
     """
-    检测并跳过剧情，返回True表示检测到并处理了剧情
-    剧情跳过流程：点击右上角菜单 -> 点击跳过 -> 确认跳过
+    检测并跳过剧情
+    流程：
+    1. 检测确认弹窗 → 点击"是"(825,557)
+    2. 检测跳过按钮(右上角) → 点击(1189,44)
+    3. 检测剧情播放界面(右下角菜单) → 点击屏幕继续/点击菜单
     """
-    if Detect.cache is None:
-        return False
-    if Detect.cache.isStoryPlaying():
-        logger.info('Story detected, attempting to skip...')
-        # 点击右上角菜单按钮 (Menu)
-        fgoDevice.device.touch((1234, 36))
-        schedule.sleep(0.5)
-        # 点击跳过按钮
-        fgoDevice.device.touch((640, 400))
-        schedule.sleep(0.3)
-        # 如果出现确认弹窗，点击确认
-        if Detect().isStorySkipConfirm():
-            fgoDevice.device.touch((640, 440))
-            schedule.sleep(0.5)
+    # 获取新截图进行检测
+    det = Detect(0, .3)
+    
+    # 1. 如果检测到确认弹窗，直接点击"是"
+    if hasattr(det.tmpl, 'STORYSKIPCONFIRM') and det.isStorySkipConfirm():
+        logger.info('Confirm dialog detected, clicking "Yes" (825, 557)...')
+        fgoDevice.device.touch((825, 557))
+        schedule.sleep(1.0)
         return True
+    
+    # 2. 如果检测到跳过按钮，点击它
+    if hasattr(det.tmpl, 'STORYSKIPBUTTON') and det.isStorySkipButton():
+        logger.info('Story skip button detected, clicking (1189, 44)...')
+        fgoDevice.device.touch((1189, 44))
+        schedule.sleep(0.8)
+        # 检测确认弹窗
+        det = Detect(0, .3)
+        if hasattr(det.tmpl, 'STORYSKIPCONFIRM') and det.isStorySkipConfirm():
+            logger.info('Confirm dialog detected, clicking "Yes" (825, 557)...')
+            fgoDevice.device.touch((825, 557))
+            schedule.sleep(1.0)
+        return True
+    
+    # 3. 如果检测到剧情播放界面（右下角有菜单按钮），点击屏幕继续剧情
+    if hasattr(det.tmpl, 'STORYMENU') and det.isStoryPlaying():
+        logger.info('Story playing detected, tapping screen to continue...')
+        # 点击屏幕中央继续剧情，可能会弹出跳过按钮
+        fgoDevice.device.touch((640, 360))
+        schedule.sleep(0.5)
+        return True
+    
     return False
 def serialize(lock):
     def decorator(func):
@@ -445,12 +464,12 @@ class Battle:
         self.start=time.time()
         self.material={}
         while True:
+            # 优先检测剧情
+            if self.handleStory():
+                continue
             if Detect(0,.3).isTurnBegin():
                 self.turn+=1
                 self.turnProc(self.turn)
-            elif self.handleStory():
-                # 剧情已被跳过，继续循环
-                continue
             elif Detect.cache.isSpecialDropSuspended():
                 schedule.checkKizunaReisou()
                 logger.warning('Kizuna Reisou')
@@ -491,27 +510,38 @@ class Main:
         while True:
             self.battleProc=self.battleClass()
             while True:
-                if Detect(.3,.3).isMainInterface():
+                # 优先检测剧情，无论当前在什么界面
+                if skipStory():
+                    schedule.sleep(0.5)
+                    continue
+                if Detect(.5,.5).isMainInterface():
                     if self.battleCount==battleTotal:return logger.info('Operation Unit Completed')
                     fgoDevice.device.press('84L'[questIndex])
                     questIndex=0
+                    schedule.sleep(0.8)  # 等待关卡加载
                     if Detect(1.2).isBattleContinue():fgoDevice.device.press('K')
                     elif Detect.cache.isSkillCastFailed():
                         fgoDevice.device.press('J')
                         return logger.info('No Storm Pot')
-                    if Detect(.7,.3).isApEmpty()and not self.eatApple():return logger.info('Ap Empty')
+                    if Detect(.7,.5).isApEmpty()and not self.eatApple():return logger.info('Ap Empty')
                     self.chooseFriend()
-                    while not Detect(0,.3).isBattleFormation():pass
+                    while not Detect(0.3,.5).isBattleFormation():
+                        if skipStory():
+                            schedule.sleep(0.5)
+                            continue  # 等待编队时也检测剧情
+                        schedule.sleep(0.3)
+                    schedule.sleep(0.5)  # 等待编队界面完全加载
                     if self.teamIndex and Detect.cache.getTeamIndex()+1!=self.teamIndex:fgoDevice.device.perform('\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7A\x7B\x7C\x7D\x7E'[self.teamIndex-1],(1000,))
-                    if self.autoFormation:fgoDevice.device.perform('\xDEL ',(1000,1500,1000))
-                    fgoDevice.device.perform(' M ',(2000,2000,10000))
+                    if self.autoFormation:fgoDevice.device.perform('\xDEL ',(1500,2000,1500))
+                    fgoDevice.device.perform(' M ',(2500,2500,10000))
                     break
                 elif Detect.cache.isBattleContinue():
                     if self.battleCount==battleTotal:
                         fgoDevice.device.press('F')
                         return logger.info('Operation Unit Completed')
                     fgoDevice.device.press('K')
-                    if Detect(.7,.3).isApEmpty()and not self.eatApple():return logger.info('Ap Empty')
+                    schedule.sleep(0.5)
+                    if Detect(.7,.5).isApEmpty()and not self.eatApple():return logger.info('Ap Empty')
                     self.chooseFriend()
                     schedule.sleep(6)
                     break
@@ -519,10 +549,10 @@ class Main:
                     fgoDevice.device.press('J')
                     return logger.info('No Storm Pot')
                 elif Detect.cache.isTurnBegin():break
-                elif Detect.cache.isAddFriend():fgoDevice.device.perform('X',(300,))
-                elif Detect.cache.isSpecialDropSuspended():fgoDevice.device.perform('\x1B',(300,))
-                elif skipStory():continue  # 检测并跳过剧情
-                fgoDevice.device.press('\xBB')
+                elif Detect.cache.isAddFriend():fgoDevice.device.perform('X',(500,))
+                elif Detect.cache.isSpecialDropSuspended():fgoDevice.device.perform('\x1B',(500,))
+                # 尝试点击关卡/继续按钮（处理地图界面等未知界面）
+                fgoDevice.device.perform('8 \xBB',(500,400,300))
             self.battleCount+=1
             logger.info(f'Battle {self.battleCount}')
             if self.battleProc():
@@ -531,6 +561,18 @@ class Main:
                 self.battleTime+=battleResult['time']
                 self.material={i:self.material.get(i,0)+battleResult['material'].get(i,0)for i in self.material|battleResult['material']}
                 fgoDevice.device.perform(' '*10,(400,)*10)
+                # 战斗完成后检测并跳过剧情，然后尝试返回关卡选择
+                storySkipped = False
+                for _ in range(10):  # 最多尝试10次
+                    if skipStory():
+                        storySkipped = True
+                        schedule.sleep(0.5)
+                    elif storySkipped:
+                        # 剧情跳过后，点击屏幕尝试继续/返回关卡列表
+                        fgoDevice.device.perform('\xBB '*3,(300,300,300))
+                        break
+                    else:
+                        break
             else:
                 self.defeated+=1
                 fgoDevice.device.perform('CIK',(500,500,500))
@@ -563,6 +605,7 @@ class Main:
     def chooseFriend(self):
         refresh=False
         while not Detect(0,.3).isChooseFriend():
+            if skipStory():continue  # 选好友时也检测剧情
             if Detect.cache.isNoFriend():
                 if refresh:schedule.sleep(10)
                 fgoDevice.device.perform('\xBAK',(500,1000))

@@ -17,7 +17,8 @@ class Android(Airtest):
             self.name=None
             return
         try:
-            super().__init__(serial,**{'cap_method':CAP_METHOD.JAVACAP}|kwargs)
+            # 尝试使用 ADBCAP 截图方法，JAVACAP 在某些模拟器上方向有问题
+            super().__init__(serial,**{'cap_method':CAP_METHOD.ADBCAP}|kwargs)
             self.package=next(i for i in re.findall(r'ACTIVITY ([A-Za-z0-9_.]+)/',self.adb.shell('dumpsys activity top'))[::-1]if(lambda x:x[2]-x[0]>959 and x[3]-x[1]>539)(self.get_render_resolution(True,i)))
             self.adjustOffset()
             self.rotation_watcher.reg_callback(lambda _:self.adjustOffset())
@@ -66,7 +67,26 @@ class Android(Airtest):
         with self.mutex:super().touch(self.key[key])
     def pinch(self):
         with self.mutex:super().pinch(percent=.2)
-    def screenshot(self):return cv2.resize(super().snapshot()[self.render[1]+self.border[1]:self.render[1]+self.render[3]-self.border[1],self.render[0]+self.border[0]:self.render[0]+self.render[2]-self.border[0]],(1280,720),interpolation=cv2.INTER_CUBIC)
+    def bringToFront(self):
+        """将游戏切换到前台"""
+        try:
+            top_activity=self.adb.shell('dumpsys activity top | grep ACTIVITY | tail -1')
+            if self.package not in top_activity:
+                self.adb.shell(f'monkey -p {self.package} -c android.intent.category.LAUNCHER 1')
+                time.sleep(1.0)
+        except Exception as e:
+            logger.warning(f'Failed to bring app to front: {e}')
+    def screenshot(self):
+        self.bringToFront()
+        img=super().snapshot()
+        h,w=img.shape[:2]
+        # 如果截图是竖屏，旋转为横屏
+        if h>w:
+            img=cv2.rotate(img,cv2.ROTATE_90_CLOCKWISE)
+        # render 格式是 [left, top, right, bottom]
+        left,top,right,bottom=self.render
+        crop=img[top:bottom,left:right]
+        return cv2.resize(crop,(1280,720),interpolation=cv2.INTER_CUBIC)
     def invoke169(self):
         x,y=(lambda r:(int(r.group(1)),int(r.group(2))))(re.search(r'(\d+)x(\d+)',self.adb.raw_shell('wm size')))
         if x*16<y*9:self.adb.raw_shell('wm size %dx%d'%(x,x*16//9))

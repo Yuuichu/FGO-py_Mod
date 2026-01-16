@@ -89,7 +89,10 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
             return False
         return True
     def runFunc(self,func):
-        if not self.isDeviceAvailable():return
+        logger.info(f'runFunc called with {func}')
+        if not self.isDeviceAvailable():
+            logger.warning('Device not available!')
+            return
         def f():
             try:
                 self.result=None
@@ -179,6 +182,7 @@ class MainWindow(QMainWindow,Ui_fgoMainWindow):
         self.LBL_DEVICE.setText(fgoDevice.device.name)
         self.MENU_CONTROL_MAPKEY.setChecked(False)
     def runMain(self):
+        logger.info('runMain called')
         self.operation.battleClass=fgoKernel.Battle
         self.runFunc(self.operation)
     def runBattle(self):self.runFunc(fgoKernel.Battle())

@@ -8,13 +8,13 @@ from fgoOcr import Ocr
 from fgoSchedule import schedule
 logger=getLogger('Detect')
 
-IMG=type('IMG',(),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]))(cv2.imread(f'fgoImage/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage')if i.endswith('.png')})
+IMG=type('IMG',(),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage')if i.endswith('.png')})
 for i in range(3):setattr(IMG,f'CHARGE{i}_SMALL',[cv2.resize(i,(0,0),fx=.77,fy=.77,interpolation=cv2.INTER_CUBIC)for i in getattr(IMG,f'CHARGE{i}')])
 IMG.LISTBARINV=[i[::-1]for i in IMG.LISTBAR]
-IMG_CN=type('IMG_CN',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]))(cv2.imread(f'fgoImage/cn/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/cn')if i.endswith('.png')})
-IMG_JP=type('IMG_JP',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]))(cv2.imread(f'fgoImage/jp/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/jp')if i.endswith('.png')})
-IMG_NA=type('IMG_NA',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]))(cv2.imread(f'fgoImage/na/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/na')if i.endswith('.png')})
-IMG_TW=type('IMG_TW',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]))(cv2.imread(f'fgoImage/tw/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/tw')if i.endswith('.png')})
+IMG_CN=type('IMG_CN',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/cn/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/cn')if i.endswith('.png')})
+IMG_JP=type('IMG_JP',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/jp/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/jp')if i.endswith('.png')})
+IMG_NA=type('IMG_NA',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/na/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/na')if i.endswith('.png')})
+IMG_TW=type('IMG_TW',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/tw/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/tw')if i.endswith('.png')})
 CLASS={100:classImg[1]}|{scale:[[cv2.resize(j,(0,0),fx=scale/100,fy=scale/100,interpolation=cv2.INTER_CUBIC)for j in i]for i in classImg[1]]for scale in(75,93,125)}
 OCR=type('OCR',(),{i:Ocr(i)for i in tqdm.tqdm(['EN','ZHS','JA','ZHT'],leave=False)})
 def coroutine(func):
@@ -133,11 +133,22 @@ class XDetectBase(metaclass=logMeta(logger)):
     def isWeeklyMission(self):return numpy.min(cv2.matchTemplate(servantImg[1][1][3][0],cv2.resize(self._crop((296,117,421,210)),(0,0),fx=.555,fy=.555,interpolation=cv2.INTER_CUBIC),cv2.TM_SQDIFF_NORMED))<.1
     def isWeeklyMissionListEnd(self):return self._isListEnd((1261,614))
     def isStoryPlaying(self):
-        """检测是否处于剧情播放界面 - 检测右上角菜单按钮"""
-        return self._compare(self.tmpl.STORYMENU,(1188,0,1280,72)) if hasattr(self.tmpl,'STORYMENU') else False
+        """检测是否处于剧情播放界面 - 检测右下角菜单按钮"""
+        if not hasattr(self.tmpl,'STORYMENU'):
+            return False
+        # 扩大搜索区域，放宽阈值到0.25
+        return self._compare(self.tmpl.STORYMENU,(1000,400,1280,620),threshold=0.25)
+    def isStorySkipButton(self):
+        """检测是否出现跳过按钮 - 右上角 (1189,44)"""
+        if not hasattr(self.tmpl,'STORYSKIPBUTTON'):
+            return False
+        return self._compare(self.tmpl.STORYSKIPBUTTON,(1100,0,1280,100))
     def isStorySkipConfirm(self):
-        """检测是否出现跳过剧情确认弹窗"""
-        return self._compare(self.tmpl.STORYSKIPCONFIRM,(380,360,900,520)) if hasattr(self.tmpl,'STORYSKIPCONFIRM') else False
+        """检测是否出现跳过剧情确认弹窗的"是"按钮 (825,557)"""
+        if not hasattr(self.tmpl,'STORYSKIPCONFIRM'):
+            return False
+        # 模板269x71，区域需要足够大
+        return self._compare(self.tmpl.STORYSKIPCONFIRM,(550,480,1000,620))
     @retryOnError()
     def getCardColor(self):return[+self._select((self.tmpl.ARTS,self.tmpl.QUICK,self.tmpl.BUSTER),(80+257*i,537,131+257*i,581))for i in range(5)]
     def getCardCriticalRate(self):return[(lambda x:0 if x is None else x+1)(self._select((self.tmpl.CRITICAL1,self.tmpl.CRITICAL2,self.tmpl.CRITICAL3,self.tmpl.CRITICAL4,self.tmpl.CRITICAL5,self.tmpl.CRITICAL6,self.tmpl.CRITICAL7,self.tmpl.CRITICAL8,self.tmpl.CRITICAL9,self.tmpl.CRITICAL0),(76+257*i,350,113+257*i,405),.06))for i in range(5)]
