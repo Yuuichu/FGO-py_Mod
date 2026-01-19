@@ -20,3 +20,15 @@ Screenshot*.png
 SummonHistory(*.png
 Log*.txt
 fgoConfig.json
+
+# MaaFramework 外部框架
+MaaFramework/
+
+# 开发工具（外部下载）
+tools/MFAToolsPlus/
+tools/MaaInspector/
+tools/MaaLogAnalyzer/
+tools/MaaPipelineEditor/
+
+# 调试输出
+debug/
