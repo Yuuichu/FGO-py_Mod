@@ -1,0 +1,111 @@
+{
+    "$schema": "https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/pipeline.schema.json",
+
+    "OCR_GetStage": {
+        "doc": "识别当前战斗阶段（1/3, 2/3, 3/3）",
+        "recognition": "OCR",
+        "expected": ["1", "2", "3"],
+        "roi": [884, 14, 18, 23],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetEnemyHp_1": {
+        "doc": "识别敌人1血量",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [100, 40, 122, 25],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetEnemyHp_2": {
+        "doc": "识别敌人2血量",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [350, 40, 122, 25],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetEnemyHp_3": {
+        "doc": "识别敌人3血量",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [600, 40, 122, 25],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetServantNp_1": {
+        "doc": "识别从者1 NP 值",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [220, 655, 51, 25],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetServantNp_2": {
+        "doc": "识别从者2 NP 值",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [537, 655, 51, 25],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetServantNp_3": {
+        "doc": "识别从者3 NP 值",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [854, 655, 51, 25],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetServantHp_1": {
+        "doc": "识别从者1 HP 值",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [200, 620, 93, 24],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetServantHp_2": {
+        "doc": "识别从者2 HP 值",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [517, 620, 93, 24],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetServantHp_3": {
+        "doc": "识别从者3 HP 值",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [834, 620, 93, 24],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetTeamIndex": {
+        "doc": "识别当前队伍编号",
+        "recognition": "OCR",
+        "expected": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+        "roi": [452, 34, 376, 28],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "OCR_GetAppleCount": {
+        "doc": "识别苹果数量",
+        "recognition": "OCR",
+        "only_rec": true,
+        "roi": [1150, 10, 80, 30],
+        "action": "DoNothing",
+        "next": []
+    }
+}

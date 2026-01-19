@@ -1,5 +1,8 @@
+from __future__ import annotations
 import os,time,cv2,numpy,re,tqdm
 from functools import reduce,wraps
+from typing import Any,Callable,Generator,Optional,TypeVar
+from numpy.typing import NDArray
 from fgoConst import PACKAGE_TO_REGION
 from fgoFuse import fuse
 from fgoLogging import getLogger,logMeta
@@ -8,13 +11,57 @@ from fgoOcr import Ocr
 from fgoSchedule import schedule
 logger=getLogger('Detect')
 
-IMG=type('IMG',(),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage')if i.endswith('.png')})
-for i in range(3):setattr(IMG,f'CHARGE{i}_SMALL',[cv2.resize(i,(0,0),fx=.77,fy=.77,interpolation=cv2.INTER_CUBIC)for i in getattr(IMG,f'CHARGE{i}')])
-IMG.LISTBARINV=[i[::-1]for i in IMG.LISTBAR]
-IMG_CN=type('IMG_CN',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/cn/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/cn')if i.endswith('.png')})
-IMG_JP=type('IMG_JP',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/jp/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/jp')if i.endswith('.png')})
-IMG_NA=type('IMG_NA',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/na/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/na')if i.endswith('.png')})
-IMG_TW=type('IMG_TW',(IMG,),{i[:-4].upper():(lambda x:(x[...,:3],x[...,3]if x.shape[2]>3 else numpy.ones((x.shape[0],x.shape[1]),dtype=numpy.uint8)*255))(cv2.imread(f'fgoImage/tw/{i}',cv2.IMREAD_UNCHANGED))for i in os.listdir('fgoImage/tw')if i.endswith('.png')})
+# 类型别名
+Rect=tuple[int,int,int,int]
+Point=tuple[int,int]
+ImageTuple=tuple[NDArray[numpy.uint8],NDArray[numpy.uint8]]
+
+def _safeLoadImage(path:str)->NDArray[numpy.uint8]:
+    """安全加载图像，失败时返回占位图"""
+    try:
+        img=cv2.imread(path,cv2.IMREAD_UNCHANGED)
+        if img is None:
+            logger.warning(f'Image not found or invalid: {path}')
+            # 返回16x16红色占位图
+            placeholder=numpy.zeros((16,16,4),dtype=numpy.uint8)
+            placeholder[:,:,2]=255  # 红色通道
+            placeholder[:,:,3]=255  # alpha通道
+            return placeholder
+        return img
+    except Exception as e:
+        logger.error(f'Failed to load image {path}: {e}')
+        placeholder=numpy.zeros((16,16,4),dtype=numpy.uint8)
+        placeholder[:,:,2]=255
+        placeholder[:,:,3]=255
+        return placeholder
+
+def _processImage(img:NDArray[numpy.uint8])->ImageTuple:
+    """处理图像，分离RGB和Alpha通道"""
+    if img.shape[2]>3:
+        return(img[...,:3],img[...,3])
+    else:
+        return(img[...,:3],numpy.ones((img.shape[0],img.shape[1]),dtype=numpy.uint8)*255)
+
+def _safeListDir(path:str)->list[str]:
+    """安全列出目录内容"""
+    try:
+        if os.path.isdir(path):
+            return[i for i in os.listdir(path)if i.endswith('.png')]
+        return[]
+    except OSError as e:
+        logger.error(f'Failed to list directory {path}: {e}')
+        return[]
+
+IMG=type('IMG',(),{i[:-4].upper():_processImage(_safeLoadImage(f'fgoImage/{i}'))for i in _safeListDir('fgoImage')})
+for i in range(3):
+    if hasattr(IMG,f'CHARGE{i}'):
+        setattr(IMG,f'CHARGE{i}_SMALL',[cv2.resize(j,(0,0),fx=.77,fy=.77,interpolation=cv2.INTER_CUBIC)for j in getattr(IMG,f'CHARGE{i}')])
+if hasattr(IMG,'LISTBAR'):
+    IMG.LISTBARINV=[i[::-1]for i in IMG.LISTBAR]
+IMG_CN=type('IMG_CN',(IMG,),{i[:-4].upper():_processImage(_safeLoadImage(f'fgoImage/cn/{i}'))for i in _safeListDir('fgoImage/cn')})
+IMG_JP=type('IMG_JP',(IMG,),{i[:-4].upper():_processImage(_safeLoadImage(f'fgoImage/jp/{i}'))for i in _safeListDir('fgoImage/jp')})
+IMG_NA=type('IMG_NA',(IMG,),{i[:-4].upper():_processImage(_safeLoadImage(f'fgoImage/na/{i}'))for i in _safeListDir('fgoImage/na')})
+IMG_TW=type('IMG_TW',(IMG,),{i[:-4].upper():_processImage(_safeLoadImage(f'fgoImage/tw/{i}'))for i in _safeListDir('fgoImage/tw')})
 CLASS={100:classImg[1]}|{scale:[[cv2.resize(j,(0,0),fx=scale/100,fy=scale/100,interpolation=cv2.INTER_CUBIC)for j in i]for i in classImg[1]]for scale in(75,93,125)}
 OCR=type('OCR',(),{i:Ocr(i)for i in tqdm.tqdm(['EN','ZHS','JA','ZHT'],leave=False)})
 def coroutine(func):

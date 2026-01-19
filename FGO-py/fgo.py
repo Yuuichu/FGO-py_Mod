@@ -2,7 +2,10 @@ import argparse,os,sys
 from fgoConst import VERSION
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-with open("../.git/HEAD")as f:head=f.read().strip()
+try:
+    with open("../.git/HEAD")as f:head=f.read().strip()
+except (FileNotFoundError,PermissionError,OSError):
+    head="master"  # 默认分支
 
 parser=argparse.ArgumentParser(description=f'FGO-py {VERSION}')
 parser.add_argument('entrypoint',help='Program entry point (default: %(default)s)',type=str.lower,choices=['gui','cli','web'],default='gui'if head.endswith('master')else'cli',nargs='?')

@@ -1,0 +1,256 @@
+{
+    "$schema": "https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/pipeline.schema.json",
+    
+    "MainInterface": {
+        "doc": "检测是否在主界面",
+        "recognition": "TemplateMatch",
+        "template": "menu.png",
+        "threshold": 0.9,
+        "roi": [1104, 613, 163, 63],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "StartBattle": {
+        "doc": "开始战斗流程",
+        "next": [
+            "CheckMainInterface",
+            "ClickQuestButton"
+        ]
+    },
+
+    "CheckMainInterface": {
+        "doc": "检测主界面",
+        "recognition": "TemplateMatch",
+        "template": "menu.png",
+        "threshold": 0.9,
+        "roi": [1104, 613, 163, 63],
+        "action": "DoNothing",
+        "next": ["ClickQuestButton"]
+    },
+
+    "ClickQuestButton": {
+        "doc": "点击关卡按钮（示例坐标，实际需根据关卡调整）",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [640, 400],
+        "post_delay": 1000,
+        "next": ["WaitBattleFormation"]
+    },
+
+    "WaitBattleFormation": {
+        "doc": "等待编队界面",
+        "recognition": "TemplateMatch",
+        "template": "battlebegin.png",
+        "threshold": 0.9,
+        "roi": [1070, 632, 200, 78],
+        "timeout": 30000,
+        "next": ["SelectFriend"]
+    },
+
+    "SelectFriend": {
+        "doc": "选择好友（点击第一个好友位置）",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [640, 300],
+        "post_delay": 500,
+        "next": ["ClickBattleBegin"]
+    },
+
+    "ClickBattleBegin": {
+        "doc": "点击开始战斗",
+        "recognition": "TemplateMatch",
+        "template": "battlebegin.png",
+        "threshold": 0.9,
+        "roi": [1070, 632, 200, 78],
+        "action": "Click",
+        "post_delay": 2000,
+        "next": ["WaitTurnBegin"]
+    },
+
+    "WaitTurnBegin": {
+        "doc": "等待回合开始（Attack按钮出现）",
+        "recognition": "TemplateMatch",
+        "template": "attack.png",
+        "threshold": 0.9,
+        "roi": [1155, 635, 55, 47],
+        "timeout": 60000,
+        "next": ["ExecuteTurn"]
+    },
+
+    "ExecuteTurn": {
+        "doc": "执行战斗回合 - 使用 FGO-py 战斗逻辑",
+        "recognition": "Custom",
+        "custom_recognition": "FGO_TurnRecognition",
+        "action": "Custom",
+        "custom_action": "FGO_TurnAction",
+        "post_delay": 3000,
+        "next": [
+            "CheckBattleFinished",
+            "CheckBattleDefeated",
+            "CheckNetworkError",
+            "WaitTurnBegin"
+        ]
+    },
+
+    "CheckBattleFinished": {
+        "doc": "检测战斗胜利（掉落界面）",
+        "recognition": "TemplateMatch",
+        "template": "stage1.png",
+        "threshold": 0.9,
+        "roi": [100, 20, 180, 60],
+        "action": "DoNothing",
+        "next": ["CollectRewards"]
+    },
+
+    "CheckBattleDefeated": {
+        "doc": "检测战斗失败",
+        "recognition": "TemplateMatch",
+        "template": "close.png",
+        "threshold": 0.9,
+        "roi": [0, 0, 50, 80],
+        "action": "DoNothing",
+        "next": ["HandleDefeat"]
+    },
+
+    "CheckNetworkError": {
+        "doc": "检测网络错误",
+        "recognition": "TemplateMatch",
+        "template": "networkerror.png",
+        "threshold": 0.9,
+        "roi": [703, 529, 271, 68],
+        "action": "Click",
+        "target": [640, 560],
+        "post_delay": 3000,
+        "next": ["WaitTurnBegin"]
+    },
+
+    "CollectRewards": {
+        "doc": "收集战斗奖励 - 连续点击跳过结算",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_CollectRewards",
+        "custom_action_param": {
+            "clicks": 15,
+            "interval": 0.4
+        },
+        "next": ["CheckBattleContinue", "CheckMainInterface_AfterBattle"]
+    },
+
+    "HandleDefeat": {
+        "doc": "处理战斗失败 - 返回主界面",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [640, 500],
+        "post_delay": 2000,
+        "next": []
+    },
+
+    "AutoFarming": {
+        "doc": "自动刷本主循环",
+        "next": [
+            "CheckMainInterface_Farm",
+            "CheckBattleContinue",
+            "WaitTurnBegin"
+        ]
+    },
+
+    "CheckMainInterface_Farm": {
+        "doc": "检测主界面并进入关卡",
+        "recognition": "TemplateMatch",
+        "template": "menu.png",
+        "threshold": 0.9,
+        "roi": [1104, 613, 163, 63],
+        "action": "Click",
+        "target": [640, 400],
+        "post_delay": 1500,
+        "next": ["WaitBattleFormation"]
+    },
+
+    "CheckMainInterface_AfterBattle": {
+        "doc": "战斗后检测主界面",
+        "recognition": "TemplateMatch",
+        "template": "menu.png",
+        "threshold": 0.9,
+        "roi": [1104, 613, 163, 63],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "CheckBattleContinue": {
+        "doc": "检测连续战斗按钮",
+        "recognition": "TemplateMatch",
+        "template": "battlecontinue.png",
+        "threshold": 0.9,
+        "roi": [704, 530, 272, 88],
+        "action": "Click",
+        "post_delay": 1500,
+        "next": ["WaitBattleFormation"]
+    },
+
+    "SkillCast_S1_1": {
+        "doc": "释放从者1技能1（示例）",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_CastSkill",
+        "custom_action_param": {
+            "servant": 0,
+            "skill": 0
+        },
+        "post_delay": 800,
+        "next": []
+    },
+
+    "SkillCast_S1_2": {
+        "doc": "释放从者1技能2（示例）",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_CastSkill",
+        "custom_action_param": {
+            "servant": 0,
+            "skill": 1
+        },
+        "post_delay": 800,
+        "next": []
+    },
+
+    "SkillCast_S1_3": {
+        "doc": "释放从者1技能3（示例）",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_CastSkill",
+        "custom_action_param": {
+            "servant": 0,
+            "skill": 2
+        },
+        "post_delay": 800,
+        "next": []
+    },
+
+    "MasterSkill_1": {
+        "doc": "御主技能1（示例）",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_CastMasterSkill",
+        "custom_action_param": {
+            "skill": 0,
+            "target1": 0
+        },
+        "post_delay": 1000,
+        "next": []
+    },
+
+    "MasterSkill_OrderChange": {
+        "doc": "换人御主技能（示例）",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_CastMasterSkill",
+        "custom_action_param": {
+            "skill": 2,
+            "target1": 0,
+            "target2": 0
+        },
+        "post_delay": 3000,
+        "next": []
+    }
+}

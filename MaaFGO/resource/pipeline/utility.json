@@ -1,0 +1,266 @@
+{
+    "$schema": "https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/pipeline.schema.json",
+
+    "_comment": "实用功能任务 - 友情点召唤、邮箱收取、抽卡记录等",
+
+    "FPSummon_Start": {
+        "doc": "友情点召唤入口",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": ["FPSummon_CheckMainInterface"]
+    },
+
+    "FPSummon_CheckMainInterface": {
+        "doc": "检测主界面 - 前往召唤",
+        "recognition": "TemplateMatch",
+        "template": "menu.png",
+        "threshold": 0.9,
+        "roi": [1104, 613, 163, 63],
+        "action": "Click",
+        "target": [100, 650],
+        "post_delay": 2000,
+        "next": ["FPSummon_WaitSummonPage"]
+    },
+
+    "FPSummon_WaitSummonPage": {
+        "doc": "等待召唤页面",
+        "recognition": "TemplateMatch",
+        "template": "fpsummon.png",
+        "threshold": 0.9,
+        "roi": [643, 20, 169, 47],
+        "timeout": 10000,
+        "action": "DoNothing",
+        "next": ["FPSummon_Click10"]
+    },
+
+    "FPSummon_Click10": {
+        "doc": "点击10连召唤",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [990, 660],
+        "post_delay": 3000,
+        "next": ["FPSummon_WaitResult"]
+    },
+
+    "FPSummon_WaitResult": {
+        "doc": "等待召唤结果",
+        "recognition": "TemplateMatch",
+        "template": "fpcontinue.png",
+        "threshold": 0.9,
+        "roi": [646, 639, 237, 68],
+        "timeout": 30000,
+        "action": "DoNothing",
+        "next": ["FPSummon_Continue"]
+    },
+
+    "FPSummon_Continue": {
+        "doc": "继续召唤",
+        "recognition": "TemplateMatch",
+        "template": "fpcontinue.png",
+        "threshold": 0.9,
+        "roi": [646, 639, 237, 68],
+        "action": "Click",
+        "post_delay": 5000,
+        "next": ["FPSummon_WaitResult", "FPSummon_End"]
+    },
+
+    "FPSummon_End": {
+        "doc": "召唤结束",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "Mail_Start": {
+        "doc": "邮箱收取入口",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": ["Mail_CheckMainInterface"]
+    },
+
+    "Mail_CheckMainInterface": {
+        "doc": "检测主界面 - 前往邮箱",
+        "recognition": "TemplateMatch",
+        "template": "menu.png",
+        "threshold": 0.9,
+        "roi": [1104, 613, 163, 63],
+        "action": "Click",
+        "target": [1230, 100],
+        "post_delay": 2000,
+        "next": ["Mail_ClickMailbox"]
+    },
+
+    "Mail_ClickMailbox": {
+        "doc": "点击邮箱",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [1180, 280],
+        "post_delay": 2000,
+        "next": ["Mail_ReceiveAll"]
+    },
+
+    "Mail_ReceiveAll": {
+        "doc": "一键收取",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [1150, 130],
+        "post_delay": 1500,
+        "next": ["Mail_Confirm"]
+    },
+
+    "Mail_Confirm": {
+        "doc": "确认收取",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [825, 557],
+        "post_delay": 2000,
+        "next": ["Mail_End"]
+    },
+
+    "Mail_End": {
+        "doc": "邮箱收取结束",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "SummonHistory_Start": {
+        "doc": "抽卡记录入口",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": ["SummonHistory_Navigate"]
+    },
+
+    "SummonHistory_Navigate": {
+        "doc": "导航到抽卡记录",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [100, 650],
+        "post_delay": 2000,
+        "next": ["SummonHistory_ClickHistory"]
+    },
+
+    "SummonHistory_ClickHistory": {
+        "doc": "点击抽卡记录按钮",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [1200, 130],
+        "post_delay": 2000,
+        "next": ["SummonHistory_Scroll"]
+    },
+
+    "SummonHistory_Scroll": {
+        "doc": "滚动记录列表",
+        "recognition": "DirectHit",
+        "action": "Swipe",
+        "begin": [930, 500],
+        "end": [930, 200],
+        "duration": 500,
+        "post_delay": 400,
+        "next": ["SummonHistory_CheckEnd"]
+    },
+
+    "SummonHistory_CheckEnd": {
+        "doc": "检测列表末尾",
+        "recognition": "TemplateMatch",
+        "template": "listbar.png",
+        "threshold": 0.9,
+        "roi": [1120, 530, 44, 22],
+        "action": "DoNothing",
+        "next": ["SummonHistory_End"],
+        "on_error": ["SummonHistory_Scroll"]
+    },
+
+    "SummonHistory_End": {
+        "doc": "记录完成",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "Synthesis_Start": {
+        "doc": "从者合成入口",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": ["Synthesis_WaitPage"]
+    },
+
+    "Synthesis_WaitPage": {
+        "doc": "等待合成页面",
+        "recognition": "TemplateMatch",
+        "template": "decidedisabled.png",
+        "threshold": 0.9,
+        "roi": [1035, 625, 240, 86],
+        "timeout": 10000,
+        "inverse": true,
+        "action": "DoNothing",
+        "next": ["Synthesis_SelectCards"]
+    },
+
+    "Synthesis_SelectCards": {
+        "doc": "选择合成素材",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_SelectSynthesisCards",
+        "post_delay": 500,
+        "next": ["Synthesis_Confirm"]
+    },
+
+    "Synthesis_Confirm": {
+        "doc": "确认合成",
+        "recognition": "TemplateMatch",
+        "template": "decidedisabled.png",
+        "threshold": 0.9,
+        "roi": [1035, 625, 240, 86],
+        "inverse": true,
+        "action": "Click",
+        "target": [1150, 660],
+        "post_delay": 1000,
+        "next": ["Synthesis_WaitResult"]
+    },
+
+    "Synthesis_WaitResult": {
+        "doc": "等待合成结果",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [640, 400],
+        "post_delay": 500,
+        "next": ["Synthesis_End", "Synthesis_WaitPage"]
+    },
+
+    "Synthesis_End": {
+        "doc": "合成结束",
+        "recognition": "TemplateMatch",
+        "template": "decidedisabled.png",
+        "threshold": 0.9,
+        "roi": [1035, 625, 240, 86],
+        "action": "DoNothing",
+        "next": []
+    },
+
+    "Lottery_Start": {
+        "doc": "抽奖入口",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": ["Lottery_Loop"]
+    },
+
+    "Lottery_Loop": {
+        "doc": "抽奖循环",
+        "recognition": "DirectHit",
+        "action": "Custom",
+        "custom_action": "FGO_LotteryRoll",
+        "custom_action_param": {
+            "times": 10
+        },
+        "post_delay": 500,
+        "next": ["Lottery_CheckContinue"]
+    },
+
+    "Lottery_CheckContinue": {
+        "doc": "检测是否可继续抽奖",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": ["Lottery_Loop"]
+    }
+}

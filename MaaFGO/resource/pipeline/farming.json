@@ -1,0 +1,295 @@
+{
+    "$schema": "https://raw.githubusercontent.com/MaaXYZ/MaaFramework/main/tools/pipeline.schema.json",
+
+    "_comment": "完整刷本流程 - 迁移自 fgoKernel.Main/Battle/Operation",
+
+    "Farming_Start": {
+        "doc": "刷本主入口",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": [
+            "Farming_MainLoop"
+        ]
+    },
+
+    "Farming_MainLoop": {
+        "doc": "刷本主循环 - 检测当前状态并分发",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": [
+            "Farming_CheckStorySkip",
+            "Farming_CheckMainInterface",
+            "Farming_CheckBattleContinue",
+            "Farming_CheckTurnBegin",
+            "Farming_CheckApEmpty",
+            "Farming_CheckBattleFormation",
+            "Farming_CheckChooseFriend",
+            "Farming_CheckNetworkError",
+            "Farming_CheckAddFriend",
+            "Farming_CheckSpecialDrop",
+            "Farming_DefaultAction"
+        ]
+    },
+
+    "Farming_CheckStorySkip": {
+        "doc": "检测剧情跳过确认弹窗",
+        "recognition": "TemplateMatch",
+        "template": "storyskipconfirm.png",
+        "threshold": 0.9,
+        "roi": [550, 480, 450, 140],
+        "action": "Click",
+        "target": [825, 557],
+        "post_delay": 1000,
+        "next": ["Farming_MainLoop"]
+    },
+
+    "Farming_CheckStorySkipButton": {
+        "doc": "检测剧情跳过按钮（右上角）",
+        "recognition": "TemplateMatch",
+        "template": "storyskipbutton.png",
+        "threshold": 0.9,
+        "roi": [1100, 0, 180, 100],
+        "action": "Click",
+        "target": [1189, 44],
+        "post_delay": 800,
+        "next": ["Farming_CheckStorySkip", "Farming_MainLoop"]
+    },
+
+    "Farming_CheckStoryPlaying": {
+        "doc": "检测剧情播放界面",
+        "recognition": "TemplateMatch",
+        "template": "storymenu.png",
+        "threshold": 0.85,
+        "roi": [1000, 400, 280, 220],
+        "action": "Click",
+        "target": [640, 360],
+        "post_delay": 500,
+        "next": ["Farming_CheckStorySkipButton", "Farming_MainLoop"]
+    },
+
+    "Farming_CheckMainInterface": {
+        "doc": "检测主界面 - 进入关卡",
+        "recognition": "TemplateMatch",
+        "template": "menu.png",
+        "threshold": 0.9,
+        "roi": [1104, 613, 163, 63],
+        "action": "Click",
+        "target": [640, 400],
+        "post_delay": 1500,
+        "next": ["Farming_WaitForQuest"]
+    },
+
+    "Farming_WaitForQuest": {
+        "doc": "等待关卡加载",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 800,
+        "next": [
+            "Farming_CheckBattleContinue",
+            "Farming_CheckApEmpty",
+            "Farming_CheckChooseFriend",
+            "Farming_CheckBattleFormation",
+            "Farming_MainLoop"
+        ]
+    },
+
+    "Farming_CheckBattleContinue": {
+        "doc": "检测连续战斗按钮",
+        "recognition": "TemplateMatch",
+        "template": "battlecontinue.png",
+        "threshold": 0.9,
+        "roi": [704, 530, 272, 88],
+        "action": "Click",
+        "post_delay": 500,
+        "next": ["Farming_CheckApEmpty", "Farming_CheckChooseFriend", "Farming_WaitBattleStart"]
+    },
+
+    "Farming_CheckApEmpty": {
+        "doc": "检测 AP 不足",
+        "recognition": "TemplateMatch",
+        "template": "apempty.png",
+        "threshold": 0.9,
+        "roi": [522, 582, 236, 70],
+        "action": "Custom",
+        "custom_action": "FGO_EatApple",
+        "custom_action_param": {
+            "apple_kind": 0,
+            "cancel_if_empty": true
+        },
+        "next": ["Farming_MainLoop"]
+    },
+
+    "Farming_CheckChooseFriend": {
+        "doc": "检测选择好友界面",
+        "recognition": "TemplateMatch",
+        "template": "choosefriend.png",
+        "threshold": 0.9,
+        "roi": [1189, 190, 21, 53],
+        "action": "Custom",
+        "custom_action": "FGO_ChooseFriend",
+        "post_delay": 1000,
+        "next": ["Farming_CheckBattleFormation", "Farming_MainLoop"]
+    },
+
+    "Farming_CheckNoFriend": {
+        "doc": "检测无好友 - 刷新列表",
+        "recognition": "TemplateMatch",
+        "template": "nofriend.png",
+        "threshold": 0.9,
+        "roi": [245, 362, 29, 30],
+        "action": "Click",
+        "target": [1200, 130],
+        "post_delay": 10000,
+        "next": ["Farming_RefreshFriendList"]
+    },
+
+    "Farming_RefreshFriendList": {
+        "doc": "刷新好友列表",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [640, 560],
+        "post_delay": 1000,
+        "next": ["Farming_CheckChooseFriend", "Farming_MainLoop"]
+    },
+
+    "Farming_CheckBattleFormation": {
+        "doc": "检测编队界面",
+        "recognition": "TemplateMatch",
+        "template": "battlebegin.png",
+        "threshold": 0.9,
+        "roi": [1070, 632, 200, 78],
+        "action": "Custom",
+        "custom_action": "FGO_BattleFormation",
+        "custom_action_param": {
+            "team_index": 0,
+            "auto_formation": false
+        },
+        "post_delay": 2500,
+        "next": ["Farming_WaitBattleStart"]
+    },
+
+    "Farming_WaitBattleStart": {
+        "doc": "等待战斗开始",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "timeout": 15000,
+        "next": [
+            "Farming_CheckTurnBegin",
+            "Farming_MainLoop"
+        ]
+    },
+
+    "Farming_CheckTurnBegin": {
+        "doc": "检测回合开始 - 执行智能战斗",
+        "recognition": "TemplateMatch",
+        "template": "attack.png",
+        "threshold": 0.9,
+        "roi": [1155, 635, 55, 47],
+        "action": "Custom",
+        "custom_action": "FGO_SmartBattle",
+        "custom_action_param": {
+            "auto_skill": false,
+            "smart_card": true,
+            "hougu_threshold": 50000
+        },
+        "post_delay": 3000,
+        "next": [
+            "Farming_CheckBattleFinished",
+            "Farming_CheckBattleDefeated",
+            "Farming_CheckSpecialDrop",
+            "Farming_CheckNetworkError",
+            "Farming_CheckTurnBegin",
+            "Farming_MainLoop"
+        ]
+    },
+
+    "Farming_CheckBattleFinished": {
+        "doc": "检测战斗胜利",
+        "recognition": "TemplateMatch",
+        "template": "stage1.png",
+        "threshold": 0.9,
+        "roi": [100, 20, 180, 60],
+        "action": "Custom",
+        "custom_action": "FGO_CollectRewards",
+        "custom_action_param": {
+            "clicks": 15,
+            "interval": 0.4
+        },
+        "next": ["Farming_AfterBattle"]
+    },
+
+    "Farming_CheckBattleDefeated": {
+        "doc": "检测战斗失败",
+        "recognition": "TemplateMatch",
+        "template": "close.png",
+        "threshold": 0.9,
+        "roi": [0, 0, 50, 80],
+        "action": "Custom",
+        "custom_action": "FGO_HandleDefeat",
+        "next": ["Farming_MainLoop"]
+    },
+
+    "Farming_CheckSpecialDrop": {
+        "doc": "检测特殊掉落（彩虹箱子）",
+        "recognition": "TemplateMatch",
+        "template": "rainbow.png",
+        "threshold": 0.9,
+        "roi": [957, 2, 33, 38],
+        "action": "DoNothing",
+        "next": ["Farming_CheckBattleFinished"]
+    },
+
+    "Farming_CheckNetworkError": {
+        "doc": "检测网络错误",
+        "recognition": "TemplateMatch",
+        "template": "networkerror.png",
+        "threshold": 0.9,
+        "roi": [703, 529, 271, 68],
+        "action": "Click",
+        "target": [640, 560],
+        "post_delay": 3000,
+        "next": ["Farming_MainLoop"]
+    },
+
+    "Farming_CheckAddFriend": {
+        "doc": "检测添加好友弹窗",
+        "recognition": "TemplateMatch",
+        "template": "addfriend.png",
+        "threshold": 0.9,
+        "roi": [161, 574, 338, 82],
+        "action": "Click",
+        "target": [460, 600],
+        "post_delay": 500,
+        "next": ["Farming_MainLoop"]
+    },
+
+    "Farming_AfterBattle": {
+        "doc": "战斗结束后处理",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "post_delay": 1000,
+        "next": [
+            "Farming_CheckStorySkip",
+            "Farming_CheckStorySkipButton",
+            "Farming_CheckBattleContinue",
+            "Farming_CheckMainInterface",
+            "Farming_MainLoop"
+        ]
+    },
+
+    "Farming_DefaultAction": {
+        "doc": "默认操作 - 点击跳过/返回",
+        "recognition": "DirectHit",
+        "action": "Click",
+        "target": [640, 400],
+        "post_delay": 500,
+        "next": ["Farming_MainLoop"]
+    },
+
+    "Farming_Stop": {
+        "doc": "停止刷本",
+        "recognition": "DirectHit",
+        "action": "DoNothing",
+        "next": []
+    }
+}

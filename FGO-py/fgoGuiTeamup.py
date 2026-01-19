@@ -1,3 +1,4 @@
+import ast
 import platform
 from PySide6.QtWidgets import QDialog
 import fgoKernel
@@ -15,16 +16,26 @@ class Teamup(QDialog, Ui_Teamup):
         self.CBB_TEAM.setCurrentIndex(-1)
         self.reset()
     def load(self,team):
-        (lambda skillInfo:[getattr(self,f'TXT_SKILL_{i}_{j}_{k}').setValue(skillInfo[i][j][k])for i in range(6)for j in range(3)for k in range(4)])(eval(self.teamup[team]['skillInfo']))
-        (lambda houguInfo:[getattr(self,f'TXT_HOUGU_{i}_{j}').setValue(houguInfo[i][j])for i in range(6)for j in range(2)])(eval(self.teamup[team]['houguInfo']))
-        (lambda masterSkill:[getattr(self,f'TXT_MASTER_{i}_{j}').setValue(masterSkill[i][j])for i in range(3)for j in range(4+(i==2))])(eval(self.teamup[team]['masterSkill']))
+        try:
+            skillInfo=ast.literal_eval(self.teamup[team]['skillInfo'])
+            houguInfo=ast.literal_eval(self.teamup[team]['houguInfo'])
+            masterSkill=ast.literal_eval(self.teamup[team]['masterSkill'])
+        except (ValueError,SyntaxError,KeyError) as e:
+            logger.error(f'Failed to load team {team}: {e}')
+            return
+        [getattr(self,f'TXT_SKILL_{i}_{j}_{k}').setValue(skillInfo[i][j][k])for i in range(6)for j in range(3)for k in range(4)]
+        [getattr(self,f'TXT_HOUGU_{i}_{j}').setValue(houguInfo[i][j])for i in range(6)for j in range(2)]
+        [getattr(self,f'TXT_MASTER_{i}_{j}').setValue(masterSkill[i][j])for i in range(3)for j in range(4+(i==2))]
     def save(self):
         if not self.CBB_TEAM.currentText():return
         self.teamup[self.CBB_TEAM.currentText()]={
             'skillInfo':str([[[getattr(self,f'TXT_SKILL_{i}_{j}_{k}').value()for k in range(4)]for j in range(3)]for i in range(6)]).replace(' ',''),
             'houguInfo':str([[getattr(self,f'TXT_HOUGU_{i}_{j}').value()for j in range(2)]for i in range(6)]).replace(' ',''),
             'masterSkill':str([[getattr(self,f'TXT_MASTER_{i}_{j}').value()for j in range(4+(i==2))]for i in range(3)]).replace(' ','')}
-        with open('fgoTeamup.ini','w')as f:self.teamup.write(f)
+        try:
+            with open('fgoTeamup.ini','w')as f:self.teamup.write(f)
+        except (OSError,PermissionError) as e:
+            logger.error(f'Failed to save teamup: {e}')
     def reset(self):self.load('DEFAULT')
     def accept(self):
         fgoKernel.ClassicTurn.skillInfo=[[[getattr(self,f'TXT_SKILL_{i}_{j}_{k}').value()for k in range(4)]for j in range(3)]for i in range(6)]

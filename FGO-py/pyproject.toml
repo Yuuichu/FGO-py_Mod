@@ -1,0 +1,39 @@
+[project]
+name = "fgo-py"
+version = "21.0.2"
+description = "Full-automatic FGO Script"
+requires-python = ">=3.11"
+
+[tool.black]
+line-length = 120
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+    | __pycache__
+    | fgoImage
+    | fgoWebUI
+    | \.venv
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip = ["fgoImage", "fgoWebUI", ".venv"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = ["fgoImage", "fgoWebUI"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "C4"]
+ignore = ["E501", "E701", "E731"]  # 允许长行、多语句、lambda赋值

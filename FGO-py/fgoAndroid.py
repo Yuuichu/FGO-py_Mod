@@ -29,18 +29,39 @@ class Android(Airtest):
     @property
     def available(self):
         if not self.name:return False
-        if self.touch_proxy.server_proc.poll()is None:return True # Only compatible with minitouch & maxtouch
+        try:
+            if self.touch_proxy.server_proc.poll()is None:return True # Only compatible with minitouch & maxtouch
+        except (AttributeError,OSError) as e:
+            logger.warning(f'Device availability check failed: {e}')
         self.name=None
         return False
     @staticmethod
-    def enumDevices():return[i for i,_ in ADB().devices('device')]
+    def enumDevices():
+        try:
+            return[i for i,_ in ADB().devices('device')]
+        except Exception as e:
+            logger.error(f'Failed to enumerate devices: {e}')
+            return[]
     def adjustOffset(self):
         self.render=[round(i)for i in self.get_render_resolution(True,self.package)]
         self.scale,self.border=(720/self.render[3],(round(self.render[2]-self.render[3]*16/9)>>1,0))if self.render[2]*9>self.render[3]*16 else(1280/self.render[2],(0,round(self.render[3]-self.render[2]*9/16)>>1))
         self.key={c:[round(p[i]/self.scale+self.border[i]+self.render[i])for i in range(2)]for c,p in KEYMAP.items()}
+    def _validateCoord(self,pos,name='pos'):
+        """验证坐标是否在有效范围内 (0-1280, 0-720)"""
+        if not isinstance(pos,(tuple,list))or len(pos)<2:
+            raise ValueError(f'{name} must be a tuple/list with at least 2 elements')
+        x,y=pos[0],pos[1]
+        if not(0<=x<=1280 and 0<=y<=720):
+            logger.warning(f'{name} ({x},{y}) is out of bounds (0-1280, 0-720), clamping')
+            x=max(0,min(1280,x))
+            y=max(0,min(720,y))
+        return(x,y)
     def touch(self,pos):
+        pos=self._validateCoord(pos,'touch pos')
         with self.mutex:super().touch([round(pos[i]/self.scale+self.border[i]+self.render[i])for i in range(2)])
     def swipe(self,begin,end):
+        begin=self._validateCoord(begin,'swipe begin')
+        end=self._validateCoord(end,'swipe end')
         p1,p2=[numpy.array(self._touch_point_by_orientation([i[j]/self.scale+self.border[j]+self.render[j]for j in range(2)]))for i in(begin,end)]
         vd=p2-p1
         lvd=numpy.linalg.norm(vd)
@@ -78,15 +99,22 @@ class Android(Airtest):
             logger.warning(f'Failed to bring app to front: {e}')
     def screenshot(self):
         self.bringToFront()
-        img=super().snapshot()
-        h,w=img.shape[:2]
-        # 如果截图是竖屏，旋转为横屏
-        if h>w:
-            img=cv2.rotate(img,cv2.ROTATE_90_CLOCKWISE)
-        # render 格式是 [left, top, right, bottom]
-        left,top,right,bottom=self.render
-        crop=img[top:bottom,left:right]
-        return cv2.resize(crop,(1280,720),interpolation=cv2.INTER_CUBIC)
+        try:
+            img=super().snapshot()
+            if img is None:
+                raise RuntimeError('Screenshot returned None')
+            h,w=img.shape[:2]
+            # 如果截图是竖屏，旋转为横屏
+            if h>w:
+                img=cv2.rotate(img,cv2.ROTATE_90_CLOCKWISE)
+            # render 格式是 [left, top, right, bottom]
+            left,top,right,bottom=self.render
+            crop=img[top:bottom,left:right]
+            return cv2.resize(crop,(1280,720),interpolation=cv2.INTER_CUBIC)
+        except Exception as e:
+            logger.error(f'Screenshot failed: {e}')
+            # 返回黑屏作为fallback
+            return numpy.zeros((720,1280,3),dtype=numpy.uint8)
     def invoke169(self):
         x,y=(lambda r:(int(r.group(1)),int(r.group(2))))(re.search(r'(\d+)x(\d+)',self.adb.raw_shell('wm size')))
         if x*16<y*9:self.adb.raw_shell('wm size %dx%d'%(x,x*16//9))

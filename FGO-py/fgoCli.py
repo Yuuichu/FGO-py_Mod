@@ -1,4 +1,4 @@
-import argparse,cmd,json,os,platform,re,signal,time
+import argparse,ast,cmd,json,os,platform,re,signal,time
 import fgoDevice
 import fgoKernel
 from functools import reduce,wraps
@@ -82,7 +82,7 @@ Some commands support <command> [<subcommand> ...] {{-h, --help}} for further in
     def do_config(self,line):
         'Edit config item if exists and forward to schedule'
         key,value=line.split()
-        value=eval(value)
+        value=ast.literal_eval(value)
         if hasattr(fgoKernel.schedule,key):getattr(fgoKernel.schedule,key)(value)
         if key in self.config:self.config[key]=value
     def complete_config(self,text,line,begidx,endidx):
@@ -166,7 +166,7 @@ Some commands support <command> [<subcommand> ...] {{-h, --help}} for further in
     def do_press(self,line):
         'Map key press'
         arg=parser_press.parse_args(line.split())
-        fgoDevice.device.press(chr(eval(arg.button))if arg.code else arg.button)
+        fgoDevice.device.press(chr(int(arg.button,0))if arg.code else arg.button)
     def do_screenshot(self,line):
         'Take a screenshot'
         arg=parser_screenshot.parse_args(line.split())
@@ -182,9 +182,9 @@ Some commands support <command> [<subcommand> ...] {{-h, --help}} for further in
         getattr(self,f'teamup_{arg.subcommand_0}')(arg)
     def teamup_load(self,arg):
         self.currentTeam=arg.name
-        fgoKernel.ClassicTurn.skillInfo=eval(self.teamup[arg.name]['skillInfo'])
-        fgoKernel.ClassicTurn.houguInfo=eval(self.teamup[arg.name]['houguInfo'])
-        fgoKernel.ClassicTurn.masterSkill=eval(self.teamup[arg.name]['masterSkill'])
+        fgoKernel.ClassicTurn.skillInfo=ast.literal_eval(self.teamup[arg.name]['skillInfo'])
+        fgoKernel.ClassicTurn.houguInfo=ast.literal_eval(self.teamup[arg.name]['houguInfo'])
+        fgoKernel.ClassicTurn.masterSkill=ast.literal_eval(self.teamup[arg.name]['masterSkill'])
         if arg.name!='DEFAULT':self.teamup_show(0)
     def teamup_save(self,arg):
         if self.currentTeam=='DEFAULT':return
@@ -193,13 +193,17 @@ Some commands support <command> [<subcommand> ...] {{-h, --help}} for further in
             'houguInfo':str(fgoKernel.ClassicTurn.houguInfo).replace(' ',''),
             'masterSkill':str(fgoKernel.ClassicTurn.masterSkill).replace(' ',''),
         }
-        with open('fgoTeamup.ini','w')as f:self.teamup.write(f)
+        try:
+            with open('fgoTeamup.ini','w')as f:self.teamup.write(f)
+        except (OSError,PermissionError) as e:
+            logger.error(f'Failed to save teamup: {e}')
+            return
         self.config.save()
     def teamup_clear(self,arg):
         store=self.currentTeam
         self.teamup_load(argparse.Namespace(name='DEFAULT'))
         self.currentTeam=store
-    def teamup_reload(self,arg):self.teamup=IniParser('teamup.ini')
+    def teamup_reload(self,arg):self.teamup=IniParser('fgoTeamup.ini')
     def teamup_list(self,arg):print('\n'.join(self.teamup.sections()))
     def teamup_show(self,arg):print('\n'.join([f'team name: {self.currentTeam}',f'team index: {fgoKernel.Main.teamIndex}','servant skill & hougu:','\n'.join(['  '.join([str(i+1),'-'.join([''.join([hex(x)[2:]for x in fgoKernel.ClassicTurn.skillInfo[i][j]])for j in range(3)]+[''.join([hex(x)[2:]for x in fgoKernel.ClassicTurn.houguInfo[i]])])])for i in range(6)]),'master skill:','   '+'-'.join([''.join([hex(x)[2:]for x in fgoKernel.ClassicTurn.masterSkill[i]])for i in range(3)])]))
     def teamup_set(self,arg):getattr(self,f'teamup_set_{arg.subcommand_1}')(arg)

@@ -1,0 +1,352 @@
+{
+    "name": "MaaFGO",
+    "version": "0.2.0",
+    "description": "Fate/Grand Order 自动化脚本 - 基于 MaaFramework",
+    "author": "FGO-py Team",
+    "url": "https://github.com/hgjazhgj/FGO-py",
+
+    "resource": [
+        {
+            "name": "base",
+            "path": "resource"
+        }
+    ],
+
+    "controller": [
+        {
+            "name": "ADB (模拟器/安卓设备)",
+            "type": "Adb"
+        },
+        {
+            "name": "Win32 (PC模拟器窗口)",
+            "type": "Win32"
+        }
+    ],
+
+    "task": [
+        {
+            "name": "主界面检测",
+            "entry": "MainInterface"
+        },
+        {
+            "name": "自动刷本",
+            "entry": "Farming_Start",
+            "pipeline_override": {
+                "Farming_CheckApEmpty": {
+                    "custom_action_param": {
+                        "apple_kind": "{apple_kind}",
+                        "cancel_if_empty": "{cancel_if_empty}"
+                    }
+                },
+                "Farming_CheckBattleFormation": {
+                    "custom_action_param": {
+                        "team_index": "{team_index}",
+                        "auto_formation": "{auto_formation}"
+                    }
+                }
+            },
+            "option": ["Server", "AppleType", "TeamConfig", "BattleCount"]
+        },
+        {
+            "name": "单次战斗",
+            "entry": "StartBattle",
+            "option": ["Server", "TeamConfig"]
+        },
+        {
+            "name": "执行单回合",
+            "entry": "WaitTurnBegin",
+            "option": ["Server"]
+        },
+        {
+            "name": "收集奖励",
+            "entry": "CollectRewards"
+        },
+        {
+            "name": "友情点召唤",
+            "entry": "FPSummon_Start"
+        },
+        {
+            "name": "抽卡记录",
+            "entry": "SummonHistory_Start"
+        },
+        {
+            "name": "邮箱收取",
+            "entry": "Mail_Start"
+        }
+    ],
+
+    "option": {
+        "Server": {
+            "cases": [
+                {
+                    "name": "简中服 (CN)",
+                    "pipeline_override": {
+                        "OCR_*": {
+                            "model": "zh_cn"
+                        }
+                    }
+                },
+                {
+                    "name": "日服 (JP)",
+                    "pipeline_override": {
+                        "OCR_*": {
+                            "model": "ja_jp"
+                        }
+                    }
+                },
+                {
+                    "name": "美服 (NA)",
+                    "pipeline_override": {
+                        "OCR_*": {
+                            "model": "en_us"
+                        }
+                    }
+                },
+                {
+                    "name": "台服 (TW)",
+                    "pipeline_override": {
+                        "OCR_*": {
+                            "model": "zh_tw"
+                        }
+                    }
+                }
+            ]
+        },
+        "AppleType": {
+            "cases": [
+                {
+                    "name": "不吃苹果",
+                    "default": true,
+                    "pipeline_override": {
+                        "Farming_CheckApEmpty": {
+                            "custom_action_param": {
+                                "cancel_if_empty": true
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "金苹果",
+                    "pipeline_override": {
+                        "Farming_CheckApEmpty": {
+                            "custom_action_param": {
+                                "apple_kind": 0,
+                                "cancel_if_empty": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "银苹果",
+                    "pipeline_override": {
+                        "Farming_CheckApEmpty": {
+                            "custom_action_param": {
+                                "apple_kind": 1,
+                                "cancel_if_empty": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "铜苹果",
+                    "pipeline_override": {
+                        "Farming_CheckApEmpty": {
+                            "custom_action_param": {
+                                "apple_kind": 2,
+                                "cancel_if_empty": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "彩虹苹果",
+                    "pipeline_override": {
+                        "Farming_CheckApEmpty": {
+                            "custom_action_param": {
+                                "apple_kind": 3,
+                                "cancel_if_empty": false
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "TeamConfig": {
+            "cases": [
+                {
+                    "name": "不切换队伍",
+                    "default": true,
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 0
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 1",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 1
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 2",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 2
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 3",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 3
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 4",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 4
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 5",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 5
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 6",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 6
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 7",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 7
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 8",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 8
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 9",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 9
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "队伍 10",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "team_index": 10
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "BattleCount": {
+            "cases": [
+                {
+                    "name": "无限刷",
+                    "default": true
+                },
+                {
+                    "name": "刷 1 次"
+                },
+                {
+                    "name": "刷 3 次"
+                },
+                {
+                    "name": "刷 5 次"
+                },
+                {
+                    "name": "刷 10 次"
+                },
+                {
+                    "name": "刷 20 次"
+                },
+                {
+                    "name": "刷 50 次"
+                }
+            ]
+        },
+        "AutoFormation": {
+            "cases": [
+                {
+                    "name": "关闭",
+                    "default": true,
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "auto_formation": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "开启",
+                    "pipeline_override": {
+                        "Farming_CheckBattleFormation": {
+                            "custom_action_param": {
+                                "auto_formation": true
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "SkipStory": {
+            "cases": [
+                {
+                    "name": "自动跳过",
+                    "default": true
+                },
+                {
+                    "name": "不跳过"
+                }
+            ]
+        }
+    }
+}

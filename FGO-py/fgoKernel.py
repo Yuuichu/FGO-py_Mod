@@ -130,7 +130,13 @@ def fpSummon():
 def lottery():
     Detect().setupLottery()
     count=0
+    max_iterations=1000  # 防止无限循环
+    iterations=0
     while(count:=0 if Detect().isLotteryContinue()else count+1)<5:
+        iterations+=1
+        if iterations>max_iterations:
+            logger.warning('Lottery max iterations reached')
+            break
         for _ in range(random.randint(10,100)):fgoDevice.device.press('2')
 # @serialize(mutex)
 # def mining():
@@ -148,12 +154,19 @@ def mail():
         if Detect().isMailListEnd():break
 @serialize(mutex)
 def synthesis():
-    while True:
+    max_rounds=100  # 最多合成100轮
+    for _ in range(max_rounds):
         fgoDevice.device.perform('8',(1000,))
         for i,j in((i,j)for i in range(4)for j in range(7)):fgoDevice.device.touch((133+133*j,253+142*i),100)
-        if Detect().isSynthesisFinished():break
+        if Detect().isSynthesisFinished():return
         fgoDevice.device.perform('  KK\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB\xBB',(800,300,300,1000,150,150,150,150,150,150,150,150,150,150,150,150,150,150,150))
-        while not Detect().isSynthesisBegin():fgoDevice.device.press('\xBB')
+        timeout=time.time()+30
+        while not Detect().isSynthesisBegin():
+            if time.time()>timeout:
+                logger.warning('Synthesis timeout waiting for begin')
+                return
+            fgoDevice.device.press('\xBB')
+    logger.warning('Synthesis max rounds reached')
 @serialize(mutex)
 def dailyFpSummon():
     while not Detect(0,1).isMainInterface():pass
@@ -253,10 +266,103 @@ class ClassicTurn:
             fgoDevice.device.perform('\x08',(700,))
             while not Detect().isTurnBegin():pass
             Detect(.5)
+    def _evaluateCardCombo(self,card,color,resist,critical,sealed,group):
+        """计算卡牌组合的评分"""
+        # 颜色链: 所有卡牌颜色相同
+        colorChain=len({color[i]for i in card})==1
+        # 首卡加成: 红卡首位加 0.3
+        firstCardBonus=0.3 if color[card[0]]==1.1 else 0
+        # 位置系数
+        posBonus=[1.0,1.2,1.4]
+        # 基础伤害
+        baseDamage=sum(
+            (firstCardBonus+posBonus[i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])
+            for i,j in enumerate(card)
+        )
+        # 链加成
+        chainBonus=0
+        if not any(sealed[i]for i in card):
+            # 同色链加成
+            if colorChain:
+                chainBonus=4.8
+            # 同从者链加成
+            sameServant=len({group[i]for i in card})==1
+            if sameServant:
+                chainBonus+=(firstCardBonus+1.0)*(3 if colorChain else 1.8)*resist[card[0]]
+        return baseDamage+chainBonus
+
+    def _selectBestCards(self,color,resist,critical,sealed,group):
+        """选择最佳卡牌组合"""
+        # 计算所有组合的评分
+        allCombos=[(card,self._evaluateCardCombo(card,color,resist,critical,sealed,group))
+                   for card in permutations(range(5),3)]
+        # 按评分排序
+        allCombos.sort(key=lambda x:-x[1])
+        # 记录调试日志
+        logger.debug('cardRank'+','.join(
+            ('  'if i%5 else'\n')+f'({card},{score:5.2f})'
+            for i,(card,score)in enumerate(allCombos)
+        ))
+        # 选择最佳组合
+        bestChoice=allCombos[0][0]
+        # 补全剩余卡牌
+        remaining=tuple({0,1,2,3,4}-set(bestChoice))
+        return list(bestChoice)+list(remaining)
+
     @logit(logger,logging.INFO)
-    def selectCard(self):return''.join((lambda hougu,sealed,color,resist,critical:(fgoDevice.device.perform('\x67\x68\x69\x64\x65\x66'[numpy.argmax([Detect.cache.getEnemyHp(i)for i in range(6)])],(500,))if any(hougu)or self.stageTurn==1 else 0,['678'[i]for i in sorted((i for i in range(3)if hougu[i]),key=lambda x:self.getHouguInfo(x,1))]+['12345'[i]for i in sorted(range(5),key=(lambda x:-color[x]*resist[x]*(not sealed[x])*(1+critical[x])))]if any(hougu)else(lambda group:['12345'[i]for i in(lambda choice:choice+tuple({0,1,2,3,4}-set(choice)))(logger.debug('cardRank'+','.join(('  'if i%5 else'\n')+f'({j}, {k:5.2f})'for i,(j,k)in enumerate(sorted([(card,(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1)))for card in permutations(range(5),3)],key=lambda x:-x[1]))))or max(permutations(range(5),3),key=lambda card:(lambda colorChain,firstCardBonus:sum((firstCardBonus+[1.,1.2,1.4][i]*color[j])*(1+critical[j])*resist[j]*(not sealed[j])for i,j in enumerate(card))+(not any(sealed[i]for i in card))*(4.8*colorChain+(firstCardBonus+1.)*(3 if colorChain else 1.8)*(len({group[i]for i in card})==1)*resist[card[0]]))(len({color[i]for i in card})==1,.3*(color[card[0]]==1.1))))])(Detect.cache.getCardGroup()))[1])([self.servant[i]<6 and j and(t:=self.getHouguInfo(i,0))and self.stage>=min(t,self.stageTotal)for i,j in enumerate(Detect().isHouguReady())],Detect.cache.isCardSealed(),[[.8,1.,1.1][i]for i in Detect.cache.getCardColor()],[[1.,1.7,.6][i]for i in Detect.cache.getCardResist()],[i/10 for i in Detect.cache.getCardCriticalRate()]))
-    def getSkillInfo(self,pos,skill,arg):return self.friendInfo[0][skill][arg]if self.friend[pos]and self.friendInfo[0][skill][arg]>=0 else self.skillInfo[self.orderChange[self.servant[pos]]][skill][arg]
-    def getHouguInfo(self,pos,arg):return self.friendInfo[1][arg]if self.friend[pos]and self.friendInfo[1][arg]>=0 else self.houguInfo[self.orderChange[self.servant[pos]]][arg]
+    def selectCard(self):
+        """选择卡牌顺序"""
+        # 获取卡牌状态
+        houguReady=Detect().isHouguReady()
+        hougu=[
+            self.servant[i]<6 and ready and 
+            (t:=self.getHouguInfo(i,0))and self.stage>=min(t,self.stageTotal)
+            for i,ready in enumerate(houguReady)
+        ]
+        sealed=Detect.cache.isCardSealed()
+        color=[[0.8,1.0,1.1][i]for i in Detect.cache.getCardColor()]
+        resist=[[1.0,1.7,0.6][i]for i in Detect.cache.getCardResist()]
+        critical=[i/10 for i in Detect.cache.getCardCriticalRate()]
+        
+        # 选择攻击目标（有宝具或第一回合）
+        if any(hougu)or self.stageTurn==1:
+            enemyHp=[Detect.cache.getEnemyHp(i)for i in range(6)]
+            targetKeys='\x67\x68\x69\x64\x65\x66'
+            fgoDevice.device.perform(targetKeys[numpy.argmax(enemyHp)],(500,))
+        
+        # 构建卡牌选择序列
+        if any(hougu):
+            # 有宝具可用：先选宝具，再按伤害排序选普通卡
+            houguCards=['678'[i]for i in sorted(
+                (i for i in range(3)if hougu[i]),
+                key=lambda x:self.getHouguInfo(x,1)
+            )]
+            normalCards=['12345'[i]for i in sorted(
+                range(5),
+                key=lambda x:-color[x]*resist[x]*(not sealed[x])*(1+critical[x])
+            )]
+            return''.join(houguCards+normalCards)
+        else:
+            # 无宝具：计算最优卡牌组合
+            group=Detect.cache.getCardGroup()
+            bestOrder=self._selectBestCards(color,resist,critical,sealed,group)
+            return''.join(['12345'[i]for i in bestOrder])
+    def getSkillInfo(self,pos,skill,arg):
+        if self.friend[pos]and self.friendInfo[0][skill][arg]>=0:
+            return self.friendInfo[0][skill][arg]
+        servant_idx=self.servant[pos]
+        if servant_idx>=len(self.orderChange):return 0
+        order_idx=self.orderChange[servant_idx]
+        if order_idx>=len(self.skillInfo):return 0
+        return self.skillInfo[order_idx][skill][arg]
+    def getHouguInfo(self,pos,arg):
+        if self.friend[pos]and self.friendInfo[1][arg]>=0:
+            return self.friendInfo[1][arg]
+        servant_idx=self.servant[pos]
+        if servant_idx>=len(self.orderChange):return 0
+        order_idx=self.orderChange[servant_idx]
+        if order_idx>=len(self.houguInfo):return 0
+        return self.houguInfo[order_idx][arg]
     def castServantSkill(self,pos,skill):
         fgoDevice.device.press(('ASD','FGH','JKL')[pos][skill])
         if Detect(.7).isSkillNone():
@@ -525,10 +631,14 @@ class Main:
                         return logger.info('No Storm Pot')
                     if Detect(.7,.5).isApEmpty()and not self.eatApple():return logger.info('Ap Empty')
                     self.chooseFriend()
+                    formation_timeout=time.time()+120  # 2分钟超时
                     while not Detect(0.3,.5).isBattleFormation():
+                        if time.time()>formation_timeout:
+                            logger.error('Timeout waiting for battle formation')
+                            raise ScriptStop('Formation timeout')
                         if skipStory():
-                            schedule.sleep(0.5)
-                            continue  # 等待编队时也检测剧情
+                            formation_timeout=time.time()+120  # 跳过剧情后重置超时
+                            continue
                         schedule.sleep(0.3)
                     schedule.sleep(0.5)  # 等待编队界面完全加载
                     if self.teamIndex and Detect.cache.getTeamIndex()+1!=self.teamIndex:fgoDevice.device.perform('\x70\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7A\x7B\x7C\x7D\x7E'[self.teamIndex-1],(1000,))

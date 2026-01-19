@@ -1,8 +1,31 @@
-airtest
-PySide6
-tqdm
-Flask
-pponnxcr
-pulp
-matplotlib
-netifaces
+# FGO-py Dependencies
+# Core dependencies with version constraints for stability
+
+# Device connection and automation
+airtest>=1.3.0,<2.0.0
+
+# GUI framework
+PySide6>=6.5.0,<7.0.0
+
+# Progress bar
+tqdm>=4.64.0
+
+# Web UI
+Flask>=2.3.0,<3.0.0
+
+# OCR
+pponnxcr>=1.0.0
+
+# Linear programming for weekly mission solver
+pulp>=2.7.0
+
+# Plotting (optional, for debugging)
+matplotlib>=3.7.0
+
+# Network interfaces discovery
+netifaces>=0.11.0
+
+# Development tools (optional)
+# black>=23.0.0
+# mypy>=1.5.0
+# ruff>=0.1.0
